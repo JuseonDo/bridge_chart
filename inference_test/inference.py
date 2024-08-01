@@ -12,6 +12,7 @@ from utils import get_template
 from utils import post_processing, extract
 from utils import clear_gpu_memory
 from utils import generated_output_check
+from utils import transform_to_dict, transform_to_csv
 from model_utils import load_model, batch_inference
 import evaluater
 
@@ -21,8 +22,7 @@ import torch
 from nltk import word_tokenize
 import fire
 from tqdm import tqdm
-from PIL import Image
-import resource
+
 
 def use_gpt():
     from gpt import (
@@ -67,6 +67,7 @@ def main(
         task:str, # chart2text, chartqa
         inputs:str, # image, text, iamge_text, bridge
         template_number:str,
+        table_type:str = 'dict', # csv, dict
         draft_name:any = None,
         batch_size:int = 16,
         model_name:str = "llava-hf/llava-1.5-7b-hf", ## llava, openflamingo, paligemma, gpt-4o
@@ -84,10 +85,10 @@ def main(
     references, titles, data_list = get_data_for_eval(task)
 
     save_path = os.path.join(ws_path,'result/chart2text/')
-    file_name = f'task:{task},inputs:{inputs},temp:{template_number},few_shot:{few_shot}-{number_of_shots},draft:{draft_name}.txt'
+    file_name = f'task:{task},inputs:{inputs},table_type:{table_type},temp:{template_number},few_shot:{few_shot}-{number_of_shots},draft:{draft_name}'
     print(file_name)
-    output_save_path = os.path.join(save_path, 'outputs/', file_name)
-    eval_save_path = os.path.join(save_path, 'eval/', file_name)
+    output_save_path = os.path.join(save_path, 'outputs/', file_name) + '.json'
+    eval_save_path = os.path.join(save_path, 'eval/', file_name) + '.txt'
 
     chart2text = Chart2Text(split_list=['test']) if task == 'chart2text' else ChartQA(split_list=['test'])
     dataset = chart2text.data_dict
@@ -109,16 +110,24 @@ def main(
 
     template = get_template(task, inputs, template_number)
 
-    prompts,image_paths = [],[]
+    prompts,image_paths,ids,chart_types,column_types = [],[],[],[],[]
+    table_transform = transform_to_dict if "dict" in table_type else transform_to_csv
     for line, draft in zip(dataset[start_idx:], tqdm(drafts[start_idx:])):
         image_path = line['image_path'] if inputs != 'text' else None
     
         title = line['title']
-        data = line['data']
-        columns = data.split('\n')[0].strip()
-        data = data.replace(columns.strip(),'').strip()
+        table = line['table']
 
-        prompt = template.format(table=data, columns=columns, title=title, draft=draft)
+        columns = table.split('\n')[0]
+        columns = ','.join(columns.split(',')[1:]).strip()
+
+        table = table_transform(table)
+
+        id = line['id']
+        chart_type = line['chart_type']
+        column_type = line['column_type']
+
+        prompt = template.format(table=table, columns=columns, title=title, draft=draft)
         if inputs != 'text':
             prompt = "USER: <image>\n" + prompt.strip() + "\nASSISTANT:"
         else:
@@ -126,6 +135,9 @@ def main(
         
         prompts.append(prompt)
         image_paths.append(image_path)
+        ids.append(id)
+        chart_types.append(chart_type)
+        column_types.append(column_type)
 
     if len(prompts) > 0:
         print(prompts[0])
@@ -139,6 +151,9 @@ def main(
             batch_size=batch_size,
             output_save_path=output_save_path,
             accelerator=accelerator,
+            ids=ids,
+            chart_types=chart_types,
+            column_types=column_types
         )
         predictions += model_outputs
     else: print("prediction:\n",predictions[0])

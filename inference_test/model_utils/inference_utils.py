@@ -5,6 +5,7 @@ import torch
 import gc
 from tqdm import tqdm
 from accelerate import Accelerator
+import json
 
 IMAGE_TOKEN_INDEX = -200
 
@@ -16,6 +17,9 @@ def batch_inference(
         batch_size:int,
         output_save_path:str,
         accelerator:Accelerator,
+        ids:List[int],
+        chart_types:List[str],
+        column_types:List[str],
         **kwargs,
 ) -> list[str]:
     model.eval()
@@ -24,12 +28,24 @@ def batch_inference(
         for i in tqdm(range(0, len(prompts), batch_size)):
             batch_prompts = prompts[i:i+batch_size]
             batch_images_paths = image_paths[i:i+batch_size]
+            batch_ids = ids[i:i+batch_size]
+            batch_chart_types = chart_types[i:i+batch_size]
+            batch_column_types = column_types[i:i+batch_size]
+
             generated_text = process_batch(model,processor,batch_prompts, batch_images_paths,accelerator,**kwargs)
             generated_text = [gen_text.split("ASSISTANT:")[1].strip().replace("$}}%","") \
                        for gen_text in generated_text]
             
             with open(output_save_path, 'a') as f:
-                f.write('\n'.join([gen_text.replace('\n','[[SEP]]') for gen_text in generated_text]) + '\n')
+                # f.write('\n'.join([gen_text.replace('\n','[[SEP]]') for gen_text in generated_text]) + '\n')
+                for id,chart_type,column_type,prompt,gen_text in zip(batch_ids,batch_chart_types,batch_column_types,batch_prompts,generated_text):
+                    f.write(json.dumps({
+                        "id":id,
+                        "chart_type":chart_type,
+                        "column_type":column_type,
+                        "prompt":prompt,
+                        "output":gen_text
+                    }) + '\n')
 
             generated_texts += generated_text
     return generated_texts
