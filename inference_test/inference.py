@@ -36,17 +36,32 @@ def tokenize(sample):
     return ' '.join(word_tokenize(sample))
 
 def multiple_metrics_evaluation(predictions,references,titles,data_list):
+    ref_token_len = [len(ref.split()) for ref in references]
+    avg_ref_token_len = sum(ref_token_len)/len(ref_token_len)
+    print("avg_ref_token_len:",avg_ref_token_len)
+
+    token_len = [len(pred.split()) for pred in predictions]
+    avg_token_len = sum(token_len)/len(token_len)
+    print("avg_token_len:",avg_token_len)
+
     bleu = evaluater.bleu_eval(predictions,references)
+    print("bleu:",bleu)
     meteor = evaluater.meteor_eval(predictions,references)
+    print("meteor:",meteor)
     rouge = evaluater.rouge_eval(predictions,references)
+    print("rouge:",rouge)
     cs = evaluater.cs_eval(predictions, references, titles, data_list)
+    print("cs:",cs)
     bertscore = evaluater.bertscore_eval(predictions,references)
+    print("bertscore:",bertscore)
     clear_gpu_memory()
     ppl = evaluater.ppl_eval(predictions)
+    print("ppl:",ppl)
     clear_gpu_memory()
     bartscore = evaluater.bartscore_eval(predictions,references)
+    print("bartscore:",bartscore)
     clear_gpu_memory()
-    return bleu, meteor, rouge, cs, bertscore, ppl, bartscore
+    return avg_token_len, bleu, meteor, rouge, cs, bertscore, ppl, bartscore
 
 def main(
         task:str, # chart2text, chartqa
@@ -58,9 +73,6 @@ def main(
         few_shot:bool = False,
         number_of_shots:int = 10,
 ):
-    
-    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
-    resource.setrlimit(resource.RLIMIT_NOFILE, (4096, hard))
 
     if 'gpt' in model_name.lower(): use_gpt()
     if not isinstance(batch_size,int): batch_size = int(batch_size)
@@ -68,14 +80,6 @@ def main(
     if not isinstance(template_number,str): template_number = str(template_number)
 
     if few_shot: raise ValueError("Few-shot setting is not implemented")
-
-    quantization_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_compute_dtype=torch.float16
-    )
-    model, processor = load_model(model_name, quantization_config)
-    accelerator = Accelerator()
-    model, processor = accelerator.prepare(model, processor)
 
     references, titles, data_list = get_data_for_eval(task)
 
@@ -90,15 +94,24 @@ def main(
 
     predictions,start_idx = generated_output_check(output_save_path)
     draft_path = os.path.join(ws_path,f'drafts/{task}/{draft_name}_draft.txt')
+
     drafts = get_drafts(draft_path)
     if drafts is None: drafts = [None] * len(dataset)
+
+    if len(dataset[start_idx:]) > 0:
+        quantization_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=torch.float16
+        )
+        model, processor = load_model(model_name, quantization_config)
+        accelerator = Accelerator()
+        model, processor = accelerator.prepare(model, processor)
 
     template = get_template(task, inputs, template_number)
 
     prompts,image_paths = [],[]
     for line, draft in zip(dataset[start_idx:], tqdm(drafts[start_idx:])):
         image_path = line['image_path'] if inputs != 'text' else None
-        
     
         title = line['title']
         data = line['data']
@@ -106,25 +119,29 @@ def main(
         data = data.replace(columns.strip(),'').strip()
 
         prompt = template.format(table=data, columns=columns, title=title, draft=draft)
-        prompt = "USER: <image>\n" + prompt.strip() + "\nASSISTANT:"
+        if inputs != 'text':
+            prompt = "USER: <image>\n" + prompt.strip() + "\nASSISTANT:"
+        else:
+            prompt = "USER: \n" + prompt.strip() + "\nASSISTANT:"
         
         prompts.append(prompt)
         image_paths.append(image_path)
 
-    print(prompts[0])
-    print(image_paths[0])
+    if len(prompts) > 0:
+        print(prompts[0])
+        print(image_paths[0])
 
-    model_outputs = batch_inference(
-        model=model,
-        processor=processor,
-        prompts=prompts,
-        image_paths=image_paths,
-        batch_size=batch_size,
-        output_save_path=output_save_path,
-        accelerator=accelerator,
-    )
-    predictions += model_outputs
-
+        model_outputs = batch_inference(
+            model=model,
+            processor=processor,
+            prompts=prompts,
+            image_paths=image_paths,
+            batch_size=batch_size,
+            output_save_path=output_save_path,
+            accelerator=accelerator,
+        )
+        predictions += model_outputs
+    else: print("prediction:\n",predictions[0])
     assert len(references) == len(predictions) == len(titles) == len(data_list)
 
     predictions = [extract(prediction) for prediction in predictions]
@@ -132,9 +149,9 @@ def main(
     predictions, references = post_processing(predictions,references)
     tokenized_predictions = list(map(tokenize, predictions))
 
-    bleu, meteor, rouge, cs, bertscore, ppl, bartscore = multiple_metrics_evaluation(tokenized_predictions,references,titles,data_list)
-    results = f"bleu: {bleu}\nmeteor: {meteor}\nrouge: {rouge}\ncs: {cs}\nbertscore: {bertscore}\nppl: {ppl}\nbartscore: {bartscore}"
-
+    avg_token_len, bleu, meteor, rouge, cs, bertscore, ppl, bartscore = multiple_metrics_evaluation(tokenized_predictions,references,titles,data_list)
+    results = f"avg_token_len: {avg_token_len}\nbleu: {bleu}\nmeteor: {meteor}\nrouge: {rouge}\ncs: {cs}\nbertscore: {bertscore}\nppl: {ppl}\nbartscore: {bartscore}"
+    print(results)
     with open(eval_save_path, 'w') as f:
         f.write(results)
 

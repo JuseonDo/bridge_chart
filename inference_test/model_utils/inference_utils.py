@@ -6,6 +6,8 @@ import gc
 from tqdm import tqdm
 from accelerate import Accelerator
 
+IMAGE_TOKEN_INDEX = -200
+
 def batch_inference(
         model:LlavaForConditionalGeneration,
         processor:AutoProcessor,
@@ -27,9 +29,9 @@ def batch_inference(
                        for gen_text in generated_text]
             
             with open(output_save_path, 'a') as f:
-                f.write('\n'.join([gen_text.replace('\n','[[SEP]]') for gen_text in generated_text]))
+                f.write('\n'.join([gen_text.replace('\n','[[SEP]]') for gen_text in generated_text]) + '\n')
 
-            generated_texts = generated_text
+            generated_texts += generated_text
     return generated_texts
 
 def process_batch(
@@ -40,8 +42,12 @@ def process_batch(
         accelerator:Accelerator,
         **kwargs,
 ) -> list[str]:
-    batch_images = [Image.open(image_path) for image_path in batch_images_paths]
-    model_inputs = processor(batch_prompts, images=batch_images, padding=True, return_tensors="pt").to(accelerator.device)
+    if len(batch_prompts) < 1: raise Exception("Batch size can't be under 1")
+    if batch_images_paths[0] is not None: batch_images = [Image.open(image_path) for image_path in batch_images_paths]
+    else: batch_images = None
+    
+    model_inputs = processor(batch_prompts, images=batch_images, padding=True, return_tensors="pt")
+    if batch_images is not None: model_inputs = model_inputs.to(accelerator.device)
     try:
         # output = model.generate(**model_inputs,**kwargs)
         kwargs = {"max_new_tokens": 200, "do_sample": False}
@@ -55,7 +61,7 @@ def process_batch(
         print(re)
         if "CUDA" in str(re):
             del model_inputs
-            any(image.close() for image in batch_images)
+            if batch_images is not None: any(image.close() for image in batch_images)
             gc.collect()
             torch.cuda.empty_cache()
 
@@ -75,5 +81,5 @@ def process_batch(
         del model_inputs
         gc.collect()
         torch.cuda.empty_cache()
-        any(image.close() for image in batch_images)
+        if batch_images is not None: any(image.close() for image in batch_images)
     return generated_texts

@@ -5,6 +5,7 @@ chart2text_templates = {
         '2':'Summarize the following chart titled "{title}" about "{columns}" in a few sentences:\n',
         '3':'Generate a caption that describes the statistic below. The caption should explain  “{columns}”. The caption should be placed between  <caption>output</caption> tags.\nThe tile of the input statistic:\n{title}\nOutput:\n',
         '4':'Title of the statistic:\n{title}\nAxis label of the statistic:\n{columns}\nGenerate a caption that describes the statistic. The caption should be placed between  <caption>output</caption> tags.\nOutput:\n',
+        '5':'Title of the statistic:\n{title}\nAxis label of the statistic:\n{columns}\nGenerate a caption that describes the statistic.',
     },
     'text':{
         '0':'The columns of the table:\n{columns}\nTable:\n{table}\nSummarize the table in a few sentences.',
@@ -13,6 +14,7 @@ chart2text_templates = {
         '3':'Generate a caption that describes the statistic below. The caption should explain  “{columns}”. The caption should be placed between  <caption>output</caption> tags.\nThe tile of the input statistic:\n{title}\nThe content of the statistic:\n{table}\nOutput:\n',
         '4':'Title of the statistic:\n{title}\nAxis label of the statistic:\n{columns}\nContent of the statistic:\n{table}\nGenerate a caption that describes the statistic. The caption should be placed between  <caption>output</caption> tags.\nOutput:\n',
         'draft_only':'{draft}\nGenerate a caption that describes the statistic. The caption should be placed between  <caption>output</caption> tags.\nOutput:\n',
+        '5':'Title of the statistic:\n{title}\nAxis label of the statistic:\n{columns}\nContent of the statistic:\n{table}\nGenerate a caption that describes the statistic.',
     },
     'image_text':{
         '0':'The columns of the table and chart:\n{columns}\nTable:\n{table}\nSummarize the chart and table in a few sentences.',
@@ -31,9 +33,12 @@ chart2text_templates = {
         '4':'Summarize the following table and chart titled "{title}" about "{columns}" in a few sentences:\n{table}\n{draft}\n',
         '5':'Generate a caption that describes the statistic below. The caption should explain  “{columns}”. The caption should be placed between  <caption>output</caption> tags.\nThe tile of the input statistic:\n{title}\nThe content of the statistic:\n{table}\nThis Chart is based on the statistic.\nOutput:\n',
         '6':'Generate a caption that describes the statistic below. The caption should explain  “{columns}”. The caption should be placed between  <caption>output</caption> tags.\nThe tile of the input statistic:\n{title}\nThe content of the statistic:\n{table}\n{draft}\nOutput:\n',
-        'code':'Title of the statistic:\n{title}\nAxis label of the statistic:\n{columns}\nContent of the statistic:\n{table}\nThe code which makes the image:\n{draft}\nGenerate a caption that describes the statistic. The caption should be placed between  <caption>output</caption> tags.\nOutput:\n',
-        'auto-cot':'Title of the statistic:\n{title}\nAxis label of the statistic:\n{columns}\nContent of the statistic:\n{table}\nThis Chart is based on the statistic.\nGenerate a caption that describes the statistic. The caption should be placed between  <caption>output</caption> tags.\nOutput:\n',
-        'base':'Title of the statistic:\n{title}\nAxis label of the statistic:\n{columns}\nContent of the statistic:\n{table}\n{draft}\nGenerate a caption that describes the statistic. The caption should be placed between  <caption>output</caption> tags.\nOutput:\n',
+        # 'code':'Title of the statistic:\n{title}\nAxis label of the statistic:\n{columns}\nContent of the statistic:\n{table}\nThe code which makes the image:\n{draft}\nGenerate a caption that describes the statistic. The caption should be placed between  <caption>output</caption> tags.\nOutput:\n',
+        'code':'Title of the statistic:\n{title}\nAxis label of the statistic:\n{columns}\nContent of the statistic:\n{table}\nThe code which makes the image:\n{draft}\nGenerate a caption that describes the statistic.',
+        'auto-cot':'Title of the statistic:\n{title}\nAxis label of the statistic:\n{columns}\nContent of the statistic:\n{table}\nThis Chart is based on the statistic.\nGenerate a caption that describes the statistic.',
+        # 'auto-cot':'Title of the statistic:\n{title}\nAxis label of the statistic:\n{columns}\nContent of the statistic:\n{table}\nThis Chart is based on the statistic.\nGenerate a caption that describes the statistic. The caption should be placed between  <caption>output</caption> tags.\nOutput:\n',
+        # 'base':'Title of the statistic:\n{title}\nAxis label of the statistic:\n{columns}\nContent of the statistic:\n{table}\n{draft}\nGenerate a caption that describes the statistic. The caption should be placed between  <caption>output</caption> tags.\nOutput:\n',
+        'base':'Title of the statistic:\n{title}\nAxis label of the statistic:\n{columns}\nContent of the statistic:\n{table}\n{draft}\nGenerate a caption that describes the statistic.',
         
     }
 }
